@@ -16,6 +16,9 @@ SERVICE_MOVIE_REQUEST = "submit_movie_request"
 SERVICE_MUSIC_REQUEST = "submit_music_request"
 SERVICE_TV_REQUEST = "submit_tv_request"
 SERVICE_UPDATE_REQUEST = "update_request"
+SERVICE_SEARCH_MOVIE = "search_movies"
+SERVICE_SEARCH_TV = "search_tv"
+SERVICE_SEARCH_MUSIC = "search_music"
 
 SENSOR_TYPES = {
     "movies": {"type": "Movie requests", "icon": "mdi:movie"},

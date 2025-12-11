@@ -18,6 +18,7 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_SCAN_INTERVAL,
 )
+from homeassistant.core import SupportsResponse, ServiceResponse, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.discovery import async_load_platform
@@ -38,6 +39,9 @@ from .const import (
     SERVICE_MUSIC_REQUEST,
     SERVICE_TV_REQUEST,
     SERVICE_UPDATE_REQUEST,
+    SERVICE_SEARCH_MOVIE,
+    SERVICE_SEARCH_TV,
+    SERVICE_SEARCH_MUSIC,
 )
 
 DEPENDENCIES = ['webhook']
@@ -56,8 +60,8 @@ def urlbase(value) -> str:
 
 
 SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string})
-
 SUBMIT_MUSIC_REQUEST_SERVICE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string})
+SEARCH_SERVICE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string})
 
 SUBMIT_TV_REQUEST_SERVICE_SCHEMA = vol.Schema(
     {
@@ -175,6 +179,33 @@ async def async_setup(hass, config):
         status = call.data[ATTR_STATUS]
         
         await hass.async_add_executor_job(overseerr.update_request, request_id, status)
+    
+    async def search_movie(call: ServiceCall) -> ServiceResponse:
+        """Search for movies and return results."""
+        name = call.data[ATTR_NAME]
+        
+        def _search_movie():
+            return overseerr.search_movie(name)
+
+        return await hass.async_add_executor_job(_search_movie)
+
+    async def search_tv(call: ServiceCall) -> ServiceResponse:
+        """Search for TV shows and return results."""
+        name = call.data[ATTR_NAME]
+        
+        def _search_tv():
+            return overseerr.search_tv(name)
+
+        return await hass.async_add_executor_job(_search_tv)
+
+    async def search_music(call: ServiceCall) -> ServiceResponse:
+        """Search for music and return results."""
+        name = call.data[ATTR_NAME]
+        
+        def _search_music():
+            return overseerr.search_music_album(name)
+
+        return await hass.async_add_executor_job(_search_music)
 
     async def update_sensors(event_time):
         """Call to update sensors."""
@@ -210,6 +241,28 @@ async def async_setup(hass, config):
         SERVICE_UPDATE_REQUEST,
         update_request,
         schema=SERVICE_UPDATE_REQUEST_SCHEMA,
+    )
+    
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEARCH_MOVIE,
+        search_movie,
+        schema=SEARCH_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEARCH_TV,
+        search_tv,
+        schema=SEARCH_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEARCH_MUSIC,
+        search_music,
+        schema=SEARCH_SERVICE_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
     )
     
     await async_load_platform(hass, "sensor", DOMAIN, {}, config)

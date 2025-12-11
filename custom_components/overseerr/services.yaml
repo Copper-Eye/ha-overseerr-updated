@@ -32,3 +32,24 @@ update_request:
     new_status:
       description: New Status (can be pending/approve/decline/available)
       example: "approve"
+
+search_movies:
+  description: Searches for movies and returns a list of results.
+  fields:
+    name:
+      description: Search parameter
+      example: "matrix"
+
+search_tv:
+  description: Searches for TV shows and returns a list of results.
+  fields:
+    name:
+      description: Search parameter
+      example: "breaking bad"
+
+search_music:
+  description: Searches for music albums and returns a list of results.
+  fields:
+    name:
+      description: Search parameter
+      example: "nevermind"
