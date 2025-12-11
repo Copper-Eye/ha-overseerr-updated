@@ -1,9 +1,13 @@
 {
   "domain": "overseerr",
   "name": "Overseerr",
-  "documentation": "https://github.com/vaparr/ha-overseerr",
-  "issue_tracker": "https://github.com/vaparr/ha-overseerr/issues",
-  "codeowners": ["@vaparr"],
-  "requirements": ["pyoverseerr==0.1.40"],
-  "version": "0.1.42"
+  "documentation": "https://github.com/Copper-Eye/ha-overseerr-updated",
+  "issue_tracker": "https://github.com/Copper-Eye/ha-overseerr-updated/issues",
+  "codeowners": [
+    "@Copper-Eye"
+  ],
+  "requirements": [
+    "pyoverseerr==0.1.40"
+  ],
+  "version": "0.1.0"
 }

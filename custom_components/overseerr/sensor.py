@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=86400)
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the Overseerr sensor platform."""
     if discovery_info is None:
         return
@@ -29,7 +29,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         sensors.append(OverseerrSensor(
             sensor_label, sensor_type, overseerr, sensor_icon))
 
-    add_entities(sensors, True)
+    async_add_entities(sensors, True)
 
 
 class OverseerrSensor(Entity):
@@ -64,8 +64,12 @@ class OverseerrSensor(Entity):
         """Attributes."""
         return self._last_request
 
-    def update(self):
+    async def async_update(self):
         """Update the sensor."""
+        await self.hass.async_add_executor_job(self._update_sync)
+
+    def _update_sync(self):
+        """Update the sensor synchronously."""
         _LOGGER.debug("Update Overseerr sensor: %s", self.name)
         try:
             if self._label == "issues":

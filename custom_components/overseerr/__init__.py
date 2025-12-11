@@ -18,8 +18,9 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_SCAN_INTERVAL,
 )
-from homeassistant.helpers.event import track_time_interval
-from homeassistant.helpers.discovery import load_platform
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.discovery import async_load_platform
 
 from .const import (
     ATTR_NAME,
@@ -37,6 +38,7 @@ from .const import (
     SERVICE_TV_REQUEST,
     SERVICE_UPDATE_REQUEST,
 )
+
 DEPENDENCIES = ['webhook']
 _LOGGER = logging.getLogger(__name__)
 EVENT_RECEIVED = "OVERSEERR_EVENT"
@@ -92,7 +94,7 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
-def setup(hass, config):
+async def async_setup(hass, config):
     """Set up the Overseerr component platform."""
 
     overseerr = pyoverseerr.Overseerr(
@@ -105,58 +107,73 @@ def setup(hass, config):
         api_key=config[DOMAIN].get(CONF_API_KEY),
     )
 
-    scan_interval=config[DOMAIN][CONF_SCAN_INTERVAL]
+    scan_interval = config[DOMAIN][CONF_SCAN_INTERVAL]
 
-    try:
+    def authenticate_and_test():
         overseerr.authenticate()
         overseerr.test_connection()
+
+    try:
+        await hass.async_add_executor_job(authenticate_and_test)
     except pyoverseerr.OverseerrError as err:
         _LOGGER.warning("Unable to setup Overseerr: %s", err)
         return False
 
     hass.data[DOMAIN] = {"instance": overseerr}
 
-    def submit_movie_request(call):
+    async def submit_movie_request(call):
         """Submit request for movie."""
         name = call.data[ATTR_NAME]
-        movies = overseerr.search_movie(name)["results"]
-        if movies:
-            movie = movies[0]
-            overseerr.request_movie(movie["id"])
-        else:
-            raise Warning("No movie found.")
+        
+        def _request_movie():
+            movies = overseerr.search_movie(name)["results"]
+            if movies:
+                movie = movies[0]
+                overseerr.request_movie(movie["id"])
+            else:
+                _LOGGER.warning("No movie found for %s", name)
 
-    def submit_tv_request(call):
+        await hass.async_add_executor_job(_request_movie)
+
+    async def submit_tv_request(call):
         """Submit request for TV show."""
         name = call.data[ATTR_NAME]
-        tv_shows = overseerr.search_tv(name)["results"]
+        season = call.data[ATTR_SEASON]
 
-        if tv_shows:
-            season = call.data[ATTR_SEASON]
-            show = tv_shows[0]["id"]
-            if season == "first":
-                overseerr.request_tv(show, request_first=True)
-            elif season == "latest":
-                overseerr.request_tv(show, request_latest=True)
-            elif season == "all":
-                overseerr.request_tv(show, request_all=True)
-        else:
-            raise Warning("No TV show found.")
+        def _request_tv():
+            tv_shows = overseerr.search_tv(name)["results"]
+            if tv_shows:
+                show = tv_shows[0]["id"]
+                if season == "first":
+                    overseerr.request_tv(show, request_first=True)
+                elif season == "latest":
+                    overseerr.request_tv(show, request_latest=True)
+                elif season == "all":
+                    overseerr.request_tv(show, request_all=True)
+            else:
+                _LOGGER.warning("No TV show found for %s", name)
 
-    def submit_music_request(call):
+        await hass.async_add_executor_job(_request_tv)
+
+    async def submit_music_request(call):
         """Submit request for music album."""
         name = call.data[ATTR_NAME]
-        music = overseerr.search_music_album(name)
-        if music:
-            overseerr.request_music(music[0]["foreignAlbumId"])
-        else:
-            raise Warning("No music album found.")
 
-    def update_request(call):
+        def _request_music():
+            music = overseerr.search_music_album(name)
+            if music:
+                overseerr.request_music(music[0]["foreignAlbumId"])
+            else:
+                _LOGGER.warning("No music album found for %s", name)
+
+        await hass.async_add_executor_job(_request_music)
+
+    async def update_request(call):
         """Update status of specified request."""
         request_id = call.data[ATTR_ID]
         status = call.data[ATTR_STATUS]
-        overseerr.update_request(request_id, status)
+        
+        await hass.async_add_executor_job(overseerr.update_request, request_id, status)
 
     async def update_sensors(event_time):
         """Call to update sensors."""
@@ -169,32 +186,32 @@ def setup(hass, config):
         await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_total_requests"]}, blocking=False)
 
 
-    hass.services.register(
+    hass.services.async_register(
         DOMAIN,
         SERVICE_MOVIE_REQUEST,
         submit_movie_request,
         schema=SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA,
     )
-    hass.services.register(
+    hass.services.async_register(
         DOMAIN,
         SERVICE_MUSIC_REQUEST,
         submit_music_request,
         schema=SUBMIT_MUSIC_REQUEST_SERVICE_SCHEMA,
     )
-    hass.services.register(
+    hass.services.async_register(
         DOMAIN,
         SERVICE_TV_REQUEST,
         submit_tv_request,
         schema=SUBMIT_TV_REQUEST_SERVICE_SCHEMA,
     )
-    hass.services.register(
+    hass.services.async_register(
         DOMAIN,
         SERVICE_UPDATE_REQUEST,
         update_request,
         schema=SERVICE_UPDATE_REQUEST_SCHEMA,
     )
     
-    load_platform(hass, "sensor", DOMAIN, {}, config)
+    await async_load_platform(hass, "sensor", DOMAIN, {}, config)
  
     webhook_id = config[DOMAIN].get(CONF_API_KEY)
     _LOGGER.debug("webhook_id: %s", webhook_id)
@@ -207,7 +224,7 @@ def setup(hass, config):
     _LOGGER.debug("webhook data: %s", url)
 
     # register scan interval
-    track_time_interval(hass, update_sensors, scan_interval)
+    async_track_time_interval(hass, update_sensors, scan_interval)
 
     return True
 
@@ -223,7 +240,6 @@ async def handle_webhook(hass, webhook_id, request):
     _LOGGER.info("webhook data: %s", body)
 
     published_data = data
-#    published_data['requestid'] = data.get('message')
     _LOGGER.info("webhook data: %s", published_data)
     try:
         if data['notification_type'] == 'MEDIA_PENDING':
@@ -238,5 +254,4 @@ async def handle_webhook(hass, webhook_id, request):
         pass
 
  
-    hass.bus.async_fire(EVENT_RECEIVED, published_data)    
-
+    hass.bus.async_fire(EVENT_RECEIVED, published_data)
