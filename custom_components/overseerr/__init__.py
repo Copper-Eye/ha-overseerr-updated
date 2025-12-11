@@ -18,9 +18,8 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_SCAN_INTERVAL,
 )
-import homeassistant.helpers.config_validation as cv
-
 from homeassistant.helpers.event import track_time_interval
+from homeassistant.helpers.discovery import load_platform
 
 from .const import (
     ATTR_NAME,
@@ -195,7 +194,7 @@ def setup(hass, config):
         schema=SERVICE_UPDATE_REQUEST_SCHEMA,
     )
     
-    hass.helpers.discovery.load_platform("sensor", DOMAIN, {}, config)
+    load_platform(hass, "sensor", DOMAIN, {}, config)
  
     webhook_id = config[DOMAIN].get(CONF_API_KEY)
     _LOGGER.debug("webhook_id: %s", webhook_id)
