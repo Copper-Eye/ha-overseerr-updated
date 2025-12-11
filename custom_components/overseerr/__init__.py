@@ -21,6 +21,7 @@ from homeassistant.const import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.components import webhook
 
 from .const import (
     ATTR_NAME,
@@ -218,9 +219,9 @@ async def async_setup(hass, config):
 
     _LOGGER.info("Overseerr Installing Webhook")
 
-    hass.components.webhook.async_register(DOMAIN, "Overseerr", webhook_id, handle_webhook)
+    webhook.async_register(hass, DOMAIN, "Overseerr", webhook_id, handle_webhook)
 
-    url = hass.components.webhook.async_generate_url(webhook_id)
+    url = webhook.async_generate_url(hass, webhook_id)
     _LOGGER.debug("webhook data: %s", url)
 
     # register scan interval
