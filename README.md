@@ -6,13 +6,13 @@ ha_category:
 ha_domain: overseerr
 ---
 
-The `Overseerr` integration monitors data from your [Overseerr](https://overseerr.dev) instance. Test.
+The `Overseerr` integration monitors data from your [Overseerr](https://overseerr.dev) instance.
 
 ## Setup
 Install of this component should be done via HACS
 * Go into HACS -> Intregrations
 * 3 Dots -> Custom Repositories
-* Add Custom Repository URL: https://github.com/vaparr/ha-overseerr
+* Add Custom Repository URL: https://github.com/Copper-Eye/ha-overseerr-updated
 * Category: Integration
 
 Restart HA
@@ -77,24 +77,59 @@ overseerr:
 
 ### Submit request services
 
-Available services: `submit_movie_request`, `submit_tv_request`
+Available services: `submit_movie_request`, `submit_tv_request`, `submit_music_request`
 
 #### Service `submit_movie_request`
 
-Searches and requests the closest matching movie.
+Searches and requests the closest matching movie, or requests a specific movie by ID.
 
 | Service data attribute | Optional | Description                                      |
 | ---------------------- | -------- | ------------------------------------------------ |
-| `name`                 |      no  | Search parameter.                                |                          |
+| `name`                 |      yes | Search parameter. Required if `media_id` is missing. |
+| `media_id`             |      yes | TMDB ID of the movie. Preferred over `name`.     |
 
 #### Service `submit_tv_request`
 
-Searches and requests the closest matching TV show.
+Searches and requests the closest matching TV show, or requests a specific show by ID.
 
 | Service data attribute | Optional | Description                                                                                   |
 |------------------------|----------|-----------------------------------------------------------------------------------------------|
-| `name`                 |       no | Search parameter.                                                                             |
+| `name`                 |       yes | Search parameter. Required if `media_id` is missing.                                         |
+| `media_id`             |       yes | TMDB ID of the TV/Show. Preferred over `name`.                                               |
 | `season`               |      yes | Which season(s) to request. Must be one of `first`, `latest` or `all`. Defaults to latest.    |
+
+#### Service `submit_music_request`
+
+Searches and requests the closest matching music album, or requests by ID.
+
+| Service data attribute | Optional | Description                                      |
+| ---------------------- | -------- | ------------------------------------------------ |
+| `name`                 |      yes | Search parameter. Required if `media_id` is missing. |
+| `media_id`             |      yes | Music Album ID. Preferred over `name`.           |
+
+### Search services (Interactive)
+
+Available services: `search_movies`, `search_tv`, `search_music`
+
+These services return a response (JSON) containing a list of matches. Use these in Home Assistant Scripts with `response_variable` to build interactive request flows (e.g. asking for clarification via Actionable Notifications).
+
+#### Service `search_movies`
+
+| Service data attribute | Optional | Description                                      |
+| ---------------------- | -------- | ------------------------------------------------ |
+| `name`                 |      no  | Search parameter.                                |
+
+#### Service `search_tv`
+
+| Service data attribute | Optional | Description                                      |
+| ---------------------- | -------- | ------------------------------------------------ |
+| `name`                 |      no  | Search parameter.                                |
+
+#### Service `search_music`
+
+| Service data attribute | Optional | Description                                      |
+| ---------------------- | -------- | ------------------------------------------------ |
+| `name`                 |      no  | Search parameter.                                |
 
 ## WebHook support
 
@@ -119,5 +154,3 @@ Select only the boxes "Media Requested", "Media Approved"
 Authorization Header will most likley need to be left blank.
 
 With webhooks enabled, you dont really need to poll overseerr anymore, so we suggest setting the scan_interval to a large value like 600 or more
-
-

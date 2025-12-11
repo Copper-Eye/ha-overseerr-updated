@@ -28,6 +28,7 @@ from .const import (
     ATTR_NAME,
     ATTR_SEASON,
     ATTR_ID,
+    ATTR_MEDIA_ID,
     ATTR_STATUS,
     CONF_URLBASE,
     DEFAULT_PORT,
@@ -59,13 +60,26 @@ def urlbase(value) -> str:
     return f"{value}/"
 
 
-SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string})
-SUBMIT_MUSIC_REQUEST_SERVICE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string})
+SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_MEDIA_ID): cv.positive_int,
+    }
+)
+
+SUBMIT_MUSIC_REQUEST_SERVICE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_MEDIA_ID): cv.string,
+    }
+)
+
 SEARCH_SERVICE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string})
 
 SUBMIT_TV_REQUEST_SERVICE_SCHEMA = vol.Schema(
     {
-        vol.Required(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_MEDIA_ID): cv.positive_int,
         vol.Optional(ATTR_SEASON, default=DEFAULT_SEASON): vol.In(
             ["first", "latest", "all"]
         ),
@@ -128,48 +142,69 @@ async def async_setup(hass, config):
 
     async def submit_movie_request(call):
         """Submit request for movie."""
-        name = call.data[ATTR_NAME]
+        name = call.data.get(ATTR_NAME)
+        media_id = call.data.get(ATTR_MEDIA_ID)
         
         def _request_movie():
-            movies = overseerr.search_movie(name)["results"]
-            if movies:
-                movie = movies[0]
-                overseerr.request_movie(movie["id"])
+            if media_id:
+                overseerr.request_movie(media_id)
+            elif name:
+                movies = overseerr.search_movie(name)["results"]
+                if movies:
+                    movie = movies[0]
+                    overseerr.request_movie(movie["id"])
+                else:
+                    _LOGGER.warning("No movie found for %s", name)
             else:
-                _LOGGER.warning("No movie found for %s", name)
+                _LOGGER.warning("No movie name or id provided")
 
         await hass.async_add_executor_job(_request_movie)
 
     async def submit_tv_request(call):
         """Submit request for TV show."""
-        name = call.data[ATTR_NAME]
+        name = call.data.get(ATTR_NAME)
+        media_id = call.data.get(ATTR_MEDIA_ID)
         season = call.data[ATTR_SEASON]
 
         def _request_tv():
-            tv_shows = overseerr.search_tv(name)["results"]
-            if tv_shows:
-                show = tv_shows[0]["id"]
+            start_id = None
+            if media_id:
+                start_id = media_id
+            elif name:
+                tv_shows = overseerr.search_tv(name)["results"]
+                if tv_shows:
+                    start_id = tv_shows[0]["id"]
+                else:
+                    _LOGGER.warning("No TV show found for %s", name)
+            
+            if start_id:
                 if season == "first":
-                    overseerr.request_tv(show, request_first=True)
+                    overseerr.request_tv(start_id, request_first=True)
                 elif season == "latest":
-                    overseerr.request_tv(show, request_latest=True)
+                    overseerr.request_tv(start_id, request_latest=True)
                 elif season == "all":
-                    overseerr.request_tv(show, request_all=True)
+                    overseerr.request_tv(start_id, request_all=True)
             else:
-                _LOGGER.warning("No TV show found for %s", name)
+                 _LOGGER.warning("No TV show identifier provided")
 
         await hass.async_add_executor_job(_request_tv)
 
     async def submit_music_request(call):
         """Submit request for music album."""
-        name = call.data[ATTR_NAME]
+        name = call.data.get(ATTR_NAME)
+        media_id = call.data.get(ATTR_MEDIA_ID)
 
         def _request_music():
-            music = overseerr.search_music_album(name)
-            if music:
-                overseerr.request_music(music[0]["foreignAlbumId"])
+            if media_id:
+                overseerr.request_music(media_id)
+            elif name:
+                music = overseerr.search_music_album(name)
+                if music:
+                    overseerr.request_music(music[0]["foreignAlbumId"])
+                else:
+                    _LOGGER.warning("No music album found for %s", name)
             else:
-                _LOGGER.warning("No music album found for %s", name)
+                _LOGGER.warning("No music identifier provided")
 
         await hass.async_add_executor_job(_request_music)
 

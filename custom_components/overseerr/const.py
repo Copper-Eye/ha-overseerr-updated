@@ -2,6 +2,7 @@
 ATTR_NAME = "name"
 ATTR_SEASON = "season"
 ATTR_ID = "request_id"
+ATTR_MEDIA_ID = "media_id"
 ATTR_STATUS = "new_status"
 
 CONF_URLBASE = "urlbase"
