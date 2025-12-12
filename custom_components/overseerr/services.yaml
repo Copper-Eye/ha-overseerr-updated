@@ -22,15 +22,7 @@ submit_tv_request:
       description: Which season(s) to request (first, latest or all)
       example: "latest"
 
-submit_music_request:
-  description: Searches for a music album and requests the first result, or requests by ID.
-  fields:
-    name:
-      description: Search parameter (optional if media_id is provided)
-      example: "nevermind"
-    media_id:
-      description: Music Album ID (optional)
-      example: "12345"
+
 
 update_request:
   description: Updates the status of specified request to pending/approve/decline/available
@@ -56,9 +48,19 @@ search_tv:
       description: Search parameter
       example: "breaking bad"
 
-search_music:
-  description: Searches for music albums and returns a list of results.
+
+
+search:
+  name: Search
+  description: Search for movies and TV shows (Unified).
   fields:
     name:
-      description: Search parameter
-      example: "nevermind"
+      description: Search query.
+      required: true
+      example: "Matrix"
+      selector:
+        text:
+  response:
+    results:
+      description: A list of search results.
+      example: [{"id": 1, "title": "Movie", "mediaType": "movie"}]

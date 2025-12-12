@@ -1,142 +1,85 @@
 """Support for Overseerr."""
 import logging
-
-import pyoverseerr
 import voluptuous as vol
-import asyncio
-import json
-
 from datetime import timedelta
 
 from homeassistant.const import (
-    ATTR_ENTITY_ID,
     CONF_API_KEY,
     CONF_HOST,
-    CONF_PASSWORD,
     CONF_PORT,
     CONF_SSL,
-    CONF_USERNAME,
+    CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
+    ATTR_ENTITY_ID
 )
-from homeassistant.core import SupportsResponse, ServiceResponse, ServiceCall
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.discovery import async_load_platform
+import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.discovery import load_platform
 from homeassistant.components import webhook
+from homeassistant.helpers.service import ServiceCall, ServiceResponse, SupportsResponse
 
 from .const import (
+    DOMAIN,
+    DEFAULT_PORT,
+    DEFAULT_SSL,
+    DEFAULT_URLBASE,
+    CONF_URLBASE,
+    SERVICE_MOVIE_REQUEST,
+    SERVICE_TV_REQUEST,
+    SERVICE_SEARCH_MOVIE,
+    SERVICE_SEARCH_TV,
+    SERVICE_SEARCH,
     ATTR_NAME,
     ATTR_SEASON,
     ATTR_ID,
-    ATTR_MEDIA_ID,
     ATTR_STATUS,
-    CONF_URLBASE,
-    DEFAULT_PORT,
-    DEFAULT_SEASON,
-    DEFAULT_SSL,
-    DEFAULT_URLBASE,
-    DOMAIN,
-    SERVICE_MOVIE_REQUEST,
-    SERVICE_MUSIC_REQUEST,
-    SERVICE_TV_REQUEST,
-    SERVICE_UPDATE_REQUEST,
-    SERVICE_SEARCH_MOVIE,
-    SERVICE_SEARCH_TV,
-    SERVICE_SEARCH_MUSIC,
+    ATTR_MEDIA_ID,
+    SENSOR_TYPES,
 )
 
-DEPENDENCIES = ['webhook']
+from pyoverseerr import Overseerr
+
 _LOGGER = logging.getLogger(__name__)
-EVENT_RECEIVED = "OVERSEERR_EVENT"
 
+SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_NAME): cv.string,
+    vol.Optional(ATTR_MEDIA_ID): cv.string,
+})
 
-def urlbase(value) -> str:
-    """Validate and transform urlbase."""
-    if value is None:
-        raise vol.Invalid("string value is None")
-    value = str(value).strip("/")
-    if not value:
-        return value
-    return f"{value}/"
+SUBMIT_TV_REQUEST_SERVICE_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_NAME): cv.string,
+    vol.Optional(ATTR_MEDIA_ID): cv.string,
+    vol.Optional(ATTR_SEASON, default="latest"): cv.string
+})
 
+UPDATE_REQUEST_SERVICE_SCHEMA = vol.Schema({
+    vol.Required(ATTR_ID): cv.string,
+    vol.Required(ATTR_STATUS): cv.string
+})
 
-SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA = vol.Schema(
-    {
-        vol.Optional(ATTR_NAME): cv.string,
-        vol.Optional(ATTR_MEDIA_ID): cv.positive_int,
-    }
-)
+SEARCH_SERVICE_SCHEMA = vol.Schema({
+    vol.Required(ATTR_NAME): cv.string
+})
 
-SUBMIT_MUSIC_REQUEST_SERVICE_SCHEMA = vol.Schema(
-    {
-        vol.Optional(ATTR_NAME): cv.string,
-        vol.Optional(ATTR_MEDIA_ID): cv.string,
-    }
-)
+def setup(hass, config):
+    """Set up the Overseerr component."""
+    conf = config[DOMAIN]
+    api_key = conf.get(CONF_API_KEY)
+    host = conf.get(CONF_HOST)
+    port = conf.get(CONF_PORT)
+    ssl = conf.get(CONF_SSL)
+    urlbase = conf.get(CONF_URLBASE)
+    
+    # Optional password
+    password = conf.get(CONF_PASSWORD)
 
-SEARCH_SERVICE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string})
-
-SUBMIT_TV_REQUEST_SERVICE_SCHEMA = vol.Schema(
-    {
-        vol.Optional(ATTR_NAME): cv.string,
-        vol.Optional(ATTR_MEDIA_ID): cv.positive_int,
-        vol.Optional(ATTR_SEASON, default=DEFAULT_SEASON): vol.In(
-            ["first", "latest", "all"]
-        ),
-    }
-)
-
-SERVICE_UPDATE_REQUEST_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_ID): cv.positive_int,
-        vol.Required(ATTR_STATUS): cv.string,
-    }
-)
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_HOST): cv.string,
-                vol.Optional(CONF_USERNAME): cv.string,
-                vol.Required(CONF_API_KEY, "auth"): cv.string,
-                vol.Optional(CONF_PASSWORD, "auth"): cv.string,
-                vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
-                vol.Optional(CONF_URLBASE, default=DEFAULT_URLBASE): urlbase,
-                vol.Optional(CONF_SSL, default=DEFAULT_SSL): cv.boolean,
-                vol.Optional(CONF_SCAN_INTERVAL, default=timedelta(seconds=60)): cv.time_period,
-            },
-            cv.has_at_least_one_key("auth"),
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
-)
-
-
-async def async_setup(hass, config):
-    """Set up the Overseerr component platform."""
-
-    overseerr = pyoverseerr.Overseerr(
-        ssl=config[DOMAIN][CONF_SSL],
-        host=config[DOMAIN][CONF_HOST],
-        port=config[DOMAIN][CONF_PORT],
-        urlbase=config[DOMAIN][CONF_URLBASE],
-        username=config[DOMAIN].get(CONF_USERNAME),
-        password=config[DOMAIN].get(CONF_PASSWORD),
-        api_key=config[DOMAIN].get(CONF_API_KEY),
+    overseerr = Overseerr(
+        ssl=ssl,
+        host=host,
+        port=port,
+        urlbase=urlbase,
+        api_key=api_key,
+        password=password
     )
-
-    scan_interval = config[DOMAIN][CONF_SCAN_INTERVAL]
-
-    def authenticate_and_test():
-        overseerr.authenticate()
-        overseerr.test_connection()
-
-    try:
-        await hass.async_add_executor_job(authenticate_and_test)
-    except pyoverseerr.OverseerrError as err:
-        _LOGGER.warning("Unable to setup Overseerr: %s", err)
-        return False
 
     hass.data[DOMAIN] = {"instance": overseerr}
 
@@ -189,25 +132,6 @@ async def async_setup(hass, config):
 
         await hass.async_add_executor_job(_request_tv)
 
-    async def submit_music_request(call):
-        """Submit request for music album."""
-        name = call.data.get(ATTR_NAME)
-        media_id = call.data.get(ATTR_MEDIA_ID)
-
-        def _request_music():
-            if media_id:
-                overseerr.request_music(media_id)
-            elif name:
-                music = overseerr.search_music_album(name)
-                if music:
-                    overseerr.request_music(music[0]["foreignAlbumId"])
-                else:
-                    _LOGGER.warning("No music album found for %s", name)
-            else:
-                _LOGGER.warning("No music identifier provided")
-
-        await hass.async_add_executor_job(_request_music)
-
     async def update_request(call):
         """Update status of specified request."""
         request_id = call.data[ATTR_ID]
@@ -233,114 +157,66 @@ async def async_setup(hass, config):
 
         return await hass.async_add_executor_job(_search_tv)
 
-    async def search_music(call: ServiceCall) -> ServiceResponse:
-        """Search for music and return results."""
+    async def search_all(call: ServiceCall) -> ServiceResponse:
+        """Search for both movies and TV shows and return combined results."""
         name = call.data[ATTR_NAME]
         
-        def _search_music():
-            return overseerr.search_music_album(name)
+        def _search_all():
+            try:
+                movies = overseerr.search_movie(name).get("results", [])
+                tv_shows = overseerr.search_tv(name).get("results", [])
+                
+                # Combine results
+                combined = movies + tv_shows
+                
+                # Sort by popularity descending (handle missing popularity key safely)
+                combined.sort(key=lambda x: x.get("popularity", 0), reverse=True)
+                
+                return {"results": combined}
+            except Exception as e:
+                _LOGGER.error("Error during unified search: %s", e)
+                return {"results": []}
 
-        return await hass.async_add_executor_job(_search_music)
+        return await hass.async_add_executor_job(_search_all)
 
     async def update_sensors(event_time):
         """Call to update sensors."""
         _LOGGER.debug("Updating sensors")
-        # asyncio.run_coroutine_threadsafe( hass.data[DOMAIN].update(), hass.loop)
         await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_pending_requests"]}, blocking=True)
         await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_movie_requests"]}, blocking=True)
-        await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_tv_show_requests"]}, blocking=True)
-        await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_issues"]}, blocking=True)
-        await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_total_requests"]}, blocking=False)
+        await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_tv_requests"]}, blocking=True)
+        await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_total_requests"]}, blocking=True)
 
-
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_MOVIE_REQUEST,
-        submit_movie_request,
-        schema=SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_MUSIC_REQUEST,
-        submit_music_request,
-        schema=SUBMIT_MUSIC_REQUEST_SERVICE_SCHEMA,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_TV_REQUEST,
-        submit_tv_request,
-        schema=SUBMIT_TV_REQUEST_SERVICE_SCHEMA,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_UPDATE_REQUEST,
-        update_request,
-        schema=SERVICE_UPDATE_REQUEST_SCHEMA,
-    )
+    hass.services.register(DOMAIN, SERVICE_MOVIE_REQUEST, submit_movie_request, schema=SUBMIT_MOVIE_REQUEST_SERVICE_SCHEMA)
+    hass.services.register(DOMAIN, SERVICE_TV_REQUEST, submit_tv_request, schema=SUBMIT_TV_REQUEST_SERVICE_SCHEMA)
+    hass.services.register(DOMAIN, "update_request", update_request, schema=UPDATE_REQUEST_SERVICE_SCHEMA)
     
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SEARCH_MOVIE,
-        search_movie,
-        schema=SEARCH_SERVICE_SCHEMA,
-        supports_response=SupportsResponse.ONLY,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SEARCH_TV,
-        search_tv,
-        schema=SEARCH_SERVICE_SCHEMA,
-        supports_response=SupportsResponse.ONLY,
-    )
-    hass.services.async_register(
-        DOMAIN,
-        SERVICE_SEARCH_MUSIC,
-        search_music,
-        schema=SEARCH_SERVICE_SCHEMA,
-        supports_response=SupportsResponse.ONLY,
-    )
+    # Search Services
+    hass.services.register(DOMAIN, SERVICE_SEARCH_MOVIE, search_movie, schema=SEARCH_SERVICE_SCHEMA, supports_response=SupportsResponse.ONLY)
+    hass.services.register(DOMAIN, SERVICE_SEARCH_TV, search_tv, schema=SEARCH_SERVICE_SCHEMA, supports_response=SupportsResponse.ONLY)
+    hass.services.register(DOMAIN, SERVICE_SEARCH, search_all, schema=SEARCH_SERVICE_SCHEMA, supports_response=SupportsResponse.ONLY)
+
+    hass.helpers.event.track_time_interval(update_sensors, conf.get(CONF_SCAN_INTERVAL))
+
+    # Register Sensor
+    load_platform(hass, "sensor", DOMAIN, {}, config)
     
-    await async_load_platform(hass, "sensor", DOMAIN, {}, config)
- 
-    webhook_id = config[DOMAIN].get(CONF_API_KEY)
-    _LOGGER.debug("webhook_id: %s", webhook_id)
+    # Webhook support
+    async def handle_webhook(hass, webhook_id, request):
+        """Handle webhook callback."""
+        try:
+            data = await request.json()
+        except ValueError:
+            return None
 
-    _LOGGER.info("Overseerr Installing Webhook")
+        _LOGGER.debug("Webhook received: %s", data)
+        # Process webhook data here to auto-update sensors
+        # For now, just trigger an update
+        await update_sensors(None)
 
-    webhook.async_register(hass, DOMAIN, "Overseerr", webhook_id, handle_webhook)
-
-    url = webhook.async_generate_url(hass, webhook_id)
-    _LOGGER.debug("webhook data: %s", url)
-
-    # register scan interval
-    async_track_time_interval(hass, update_sensors, scan_interval)
+    webhook_id = hass.components.webhook.async_generate_id()
+    hass.components.webhook.async_register(DOMAIN, "Overseerr", webhook_id, handle_webhook)
+    
+    _LOGGER.info("Overseerr integration setup complete")
 
     return True
-
-async def handle_webhook(hass, webhook_id, request):
-    """Handle webhook callback."""
-    _LOGGER.info("webhook called")
-
-    body = await request.text()
-    try:
-        data = json.loads(body) if body else {}
-    except ValueError:
-        return None
-    _LOGGER.info("webhook data: %s", body)
-
-    published_data = data
-    _LOGGER.info("webhook data: %s", published_data)
-    try:
-        if data['notification_type'] == 'MEDIA_PENDING':
-            await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_pending_requests"]}, blocking=True)
-        if data['media']['media_type'] == 'movie':
-            await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_movie_requests"]}, blocking=True)
-        if data['media']['media_type'] == 'tv':
-            await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_tv_show_requests"]}, blocking=True)
-        await hass.services.async_call("homeassistant", "update_entity", {ATTR_ENTITY_ID: ["sensor.overseerr_total_requests"]}, blocking=False)
-
-    except Exception:
-        pass
-
- 
-    hass.bus.async_fire(EVENT_RECEIVED, published_data)
