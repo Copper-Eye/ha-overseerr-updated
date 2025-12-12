@@ -88,6 +88,13 @@ def setup(hass, config):
         password=password
     )
 
+    if not api_key and username and password:
+        try:
+            overseerr.login()
+            _LOGGER.info("Logged in to Overseerr with username/password")
+        except Exception as e:
+            _LOGGER.error("Failed to login to Overseerr: %s", e)
+
     hass.data[DOMAIN] = {"instance": overseerr}
 
     async def submit_movie_request(call):
