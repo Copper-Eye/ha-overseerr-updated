@@ -95,6 +95,14 @@ def setup(hass, config):
         password=password
     )
 
+    if api_key:
+        try:
+            # Force authentication with API Key to ensure _auth is set
+            overseerr.authenticate()
+            _LOGGER.info("Authenticated with Overseerr using API Key")
+        except Exception as e:
+            _LOGGER.error("Failed to authenticate with Overseerr using API Key: %s", e)
+
     if not api_key and username and password:
         try:
             overseerr.login()
