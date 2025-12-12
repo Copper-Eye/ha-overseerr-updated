@@ -78,6 +78,13 @@ def setup(hass, config):
         password = conf.get(CONF_PASSWORD)
         username = conf.get(CONF_USERNAME)
 
+    if api_key:
+        _LOGGER.info("Overseerr: Found API Key in configuration (Masked: %s...)", str(api_key)[:4])
+    elif username and password:
+        _LOGGER.info("Overseerr: Found Username/Password in configuration")
+    else:
+        _LOGGER.warning("Overseerr: No valid authentication found (API Key or Username/Password missing)")
+
     overseerr = Overseerr(
         ssl=ssl,
         host=host,
