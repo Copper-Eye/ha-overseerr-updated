@@ -122,7 +122,7 @@ def setup(hass, config):
         
         def _request_movie():
             if media_id:
-                overseerr.request_movie(media_id)
+                overseerr.request_movie(int(media_id))
             elif name:
                 movies = overseerr.search_movie(name)["results"]
                 if movies:
@@ -144,7 +144,7 @@ def setup(hass, config):
         def _request_tv():
             start_id = None
             if media_id:
-                start_id = media_id
+                start_id = int(media_id)
             elif name:
                 tv_shows = overseerr.search_tv(name)["results"]
                 if tv_shows:
