@@ -10,14 +10,12 @@ from homeassistant.const import (
     CONF_SSL,
     CONF_PASSWORD,
     CONF_USERNAME,
-    CONF_SCAN_INTERVAL,
     ATTR_ENTITY_ID
 )
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.discovery import load_platform
 from homeassistant.components import webhook
 from homeassistant.helpers.service import ServiceCall, ServiceResponse, SupportsResponse
-from homeassistant.helpers.event import track_time_interval
 
 from .const import (
     DOMAIN,
@@ -201,7 +199,8 @@ def setup(hass, config):
     hass.services.register(DOMAIN, SERVICE_SEARCH_TV, search_tv, schema=SEARCH_SERVICE_SCHEMA, supports_response=SupportsResponse.ONLY)
     hass.services.register(DOMAIN, SERVICE_SEARCH, search_all, schema=SEARCH_SERVICE_SCHEMA, supports_response=SupportsResponse.ONLY)
 
-    track_time_interval(hass, update_sensors, conf.get(CONF_SCAN_INTERVAL))
+    # Note: We removed the manual track_time_interval here. 
+    # Sensors will rely on HA standard polling (if should_poll is True) or Webhooks.
 
     # Register Sensor
     load_platform(hass, "sensor", DOMAIN, {}, config)
