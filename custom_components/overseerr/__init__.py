@@ -196,17 +196,21 @@ def setup(hass, config):
         
         def _search_all():
             try:
-                # Reverted: language="en" causing TypeError. Rely on defaults.
                 movies = overseerr.search_movie(name).get("results", [])
                 tv_shows = overseerr.search_tv(name).get("results", [])
                 
                 # Combine results
                 combined = movies + tv_shows
                 
+                # Deduplicate based on ID and MediaType
+                unique_results = { (item['id'], item.get('mediaType', 'unknown')): item for item in combined }.values()
+                unique_list = list(unique_results)
+
                 # Sort by popularity descending (handle missing popularity key safely)
-                combined.sort(key=lambda x: x.get("popularity", 0), reverse=True)
+                unique_list.sort(key=lambda x: x.get("popularity", 0), reverse=True)
                 
-                return {"results": combined}
+                # Limit to top 24 results (multiple of 6 for grid layout) to avoid exceeding State limits
+                return {"results": unique_list[:24]}
             except Exception as e:
                 _LOGGER.exception("Error during unified search: %s", e)
                 return {"results": []}
