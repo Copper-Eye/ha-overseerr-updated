@@ -218,8 +218,8 @@ def setup(hass, config):
         # For now, just trigger an update
         await update_sensors(None)
 
-    webhook_id = hass.components.webhook.async_generate_id()
-    hass.components.webhook.async_register(DOMAIN, "Overseerr", webhook_id, handle_webhook)
+    webhook_id = webhook.async_generate_id()
+    webhook.async_register(hass, DOMAIN, "Overseerr", webhook_id, handle_webhook)
     
     _LOGGER.info("Overseerr integration setup complete")
 
