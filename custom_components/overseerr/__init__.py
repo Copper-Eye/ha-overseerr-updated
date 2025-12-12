@@ -9,6 +9,7 @@ from homeassistant.const import (
     CONF_PORT,
     CONF_SSL,
     CONF_PASSWORD,
+    CONF_USERNAME,
     CONF_SCAN_INTERVAL,
     ATTR_ENTITY_ID
 )
@@ -23,6 +24,7 @@ from .const import (
     DEFAULT_SSL,
     DEFAULT_URLBASE,
     CONF_URLBASE,
+    CONF_USERNAME,
     SERVICE_MOVIE_REQUEST,
     SERVICE_TV_REQUEST,
     SERVICE_SEARCH_MOVIE,
@@ -69,8 +71,9 @@ def setup(hass, config):
     ssl = conf.get(CONF_SSL)
     urlbase = conf.get(CONF_URLBASE)
     
-    # Optional password
+    # Optional password and username
     password = conf.get(CONF_PASSWORD)
+    username = conf.get(CONF_USERNAME)
 
     overseerr = Overseerr(
         ssl=ssl,
@@ -78,6 +81,7 @@ def setup(hass, config):
         port=port,
         urlbase=urlbase,
         api_key=api_key,
+        username=username,
         password=password
     )
 

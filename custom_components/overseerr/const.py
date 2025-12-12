@@ -6,6 +6,7 @@ ATTR_MEDIA_ID = "media_id"
 ATTR_STATUS = "new_status"
 
 CONF_URLBASE = "urlbase"
+CONF_USERNAME = "username"
 
 DEFAULT_NAME = DOMAIN = "overseerr"
 DEFAULT_PORT = 5055
