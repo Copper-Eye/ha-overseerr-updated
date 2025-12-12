@@ -70,9 +70,13 @@ def setup(hass, config):
     ssl = conf.get(CONF_SSL)
     urlbase = conf.get(CONF_URLBASE)
     
-    # Optional password and username
-    password = conf.get(CONF_PASSWORD, "")
-    username = conf.get(CONF_USERNAME, "")
+    # Prioritize API Key. If present, don't pass username/password to avoid pyoverseerr auth conflict.
+    if api_key:
+        password = None
+        username = None
+    else:
+        password = conf.get(CONF_PASSWORD)
+        username = conf.get(CONF_USERNAME)
 
     overseerr = Overseerr(
         ssl=ssl,
@@ -167,9 +171,9 @@ def setup(hass, config):
         
         def _search_all():
             try:
-                # Attempt to pass language="en" to avoid NoneType issues in pyoverseerr
-                movies = overseerr.search_movie(name, language="en").get("results", [])
-                tv_shows = overseerr.search_tv(name, language="en").get("results", [])
+                # Reverted: language="en" causing TypeError. Rely on defaults.
+                movies = overseerr.search_movie(name).get("results", [])
+                tv_shows = overseerr.search_tv(name).get("results", [])
                 
                 # Combine results
                 combined = movies + tv_shows
