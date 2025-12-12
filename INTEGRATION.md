@@ -263,19 +263,28 @@ cards:
         {% endif %}
         {{ ns.cards }}
 
-  # --- ROW 4: SHOW MORE BUTTON (Conditional) ---
-  - type: conditional
-    conditions:
-      - condition: template
-        value_template: >
-          {% set results = state_attr('sensor.overseerr_search_json', 'results') %}
-          {% set offset = states('input_number.overseerr_page_offset') | int %}
-          {{ results and (results | length) > (offset + 6) }}
+  # --- ROW 4: SHOW MORE BUTTON (via auto-entities for conditional logic) ---
+  - type: custom:auto-entities
     card:
-      type: button
-      name: Show Next 6
-      icon: mdi:arrow-down-bold
-      tap_action:
-        action: call-service
-        service: script.overseerr_show_more
+      type: vertical-stack
+    card_param: cards
+    filter:
+      template: |
+        {% set results = state_attr('sensor.overseerr_search_json', 'results') %}
+        {% set offset = states('input_number.overseerr_page_offset') | int %}
+        {% if results and (results | length) > (offset + 6) %}
+          {{
+            [
+              {
+                "type": "button",
+                "name": "Show Next 6",
+                "icon": "mdi:arrow-down-bold",
+                "tap_action": {
+                  "action": "call-service",
+                  "service": "script.overseerr_show_more"
+                }
+              }
+            ]
+          }}
+        {% endif %}
 ```

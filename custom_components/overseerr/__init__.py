@@ -163,6 +163,7 @@ def setup(hass, config):
     async def search_all(call: ServiceCall) -> ServiceResponse:
         """Search for both movies and TV shows and return combined results."""
         name = call.data[ATTR_NAME]
+        _LOGGER.info("Unified search called with query: '%s'", name)
         
         def _search_all():
             try:
