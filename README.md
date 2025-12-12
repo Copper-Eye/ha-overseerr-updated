@@ -154,3 +154,7 @@ Select only the boxes "Media Requested", "Media Approved"
 Authorization Header will most likley need to be left blank.
 
 With webhooks enabled, you dont really need to poll overseerr anymore, so we suggest setting the scan_interval to a large value like 600 or more
+
+## Dashboard Integration
+
+For a complete guide on how to integrate these search services into your Lovelace Dashboard, creating a full "Search & Request" UI, please see [INTEGRATION.md](INTEGRATION.md).
