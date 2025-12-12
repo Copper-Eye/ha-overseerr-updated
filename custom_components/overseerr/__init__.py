@@ -71,8 +71,8 @@ def setup(hass, config):
     urlbase = conf.get(CONF_URLBASE)
     
     # Optional password and username
-    password = conf.get(CONF_PASSWORD)
-    username = conf.get(CONF_USERNAME)
+    password = conf.get(CONF_PASSWORD, "")
+    username = conf.get(CONF_USERNAME, "")
 
     overseerr = Overseerr(
         ssl=ssl,
@@ -167,8 +167,9 @@ def setup(hass, config):
         
         def _search_all():
             try:
-                movies = overseerr.search_movie(name).get("results", [])
-                tv_shows = overseerr.search_tv(name).get("results", [])
+                # Attempt to pass language="en" to avoid NoneType issues in pyoverseerr
+                movies = overseerr.search_movie(name, language="en").get("results", [])
+                tv_shows = overseerr.search_tv(name, language="en").get("results", [])
                 
                 # Combine results
                 combined = movies + tv_shows
@@ -178,7 +179,7 @@ def setup(hass, config):
                 
                 return {"results": combined}
             except Exception as e:
-                _LOGGER.error("Error during unified search: %s", e)
+                _LOGGER.exception("Error during unified search: %s", e)
                 return {"results": []}
 
         return await hass.async_add_executor_job(_search_all)
