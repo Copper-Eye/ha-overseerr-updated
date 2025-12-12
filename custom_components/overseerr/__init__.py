@@ -69,9 +69,12 @@ def setup(hass, config):
     port = conf.get(CONF_PORT)
     ssl = conf.get(CONF_SSL)
     urlbase = conf.get(CONF_URLBASE)
+    if not urlbase:
+        urlbase = ""
     
     # Prioritize API Key. If present, don't pass username/password to avoid pyoverseerr auth conflict.
     if api_key:
+        api_key = str(api_key).strip()
         password = None
         username = None
     else:
